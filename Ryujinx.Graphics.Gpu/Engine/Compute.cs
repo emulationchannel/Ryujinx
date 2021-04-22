@@ -89,11 +89,8 @@ namespace Ryujinx.Graphics.Gpu.Engine
             {
                 BufferDescriptor sb = info.SBuffers[index];
 
-                ulong sbDescAddress = BufferManager.GetComputeUniformBufferAddress(0);
-
-                int sbDescOffset = 0x310 + sb.Slot * 0x10;
-
-                sbDescAddress += (ulong)sbDescOffset;
+                ulong sbDescAddress = BufferManager.GetComputeUniformBufferAddress(sb.SbCbSlot);
+                sbDescAddress += (ulong)sb.SbCbOffset * 4;
 
                 SbDescriptor sbDescriptor = _context.PhysicalMemory.Read<SbDescriptor>(sbDescAddress);
 

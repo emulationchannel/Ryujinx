@@ -316,7 +316,7 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Glsl
 
             foreach (int sbufSlot in info.SBuffers)
             {
-                context.SBufferDescriptors.Add(new BufferDescriptor(bindings[sbufSlot], sbufSlot));
+                context.SBufferDescriptors.Add(context.Config.GetSbDescriptor(bindings[sbufSlot], sbufSlot));
             }
 
             context.AppendLine($"layout (binding = {bindings[0]}, std430) buffer {blockName}");

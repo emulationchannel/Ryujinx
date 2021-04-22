@@ -69,9 +69,9 @@ namespace Ryujinx.Graphics.Shader.Translation
             {
                 int cbOffset = GetStorageCbOffset(config.Stage, slot);
 
-                Operand baseAddrLow  = Cbuf(0, cbOffset);
-                Operand baseAddrHigh = Cbuf(0, cbOffset + 1);
-                Operand size         = Cbuf(0, cbOffset + 2);
+                Operand baseAddrLow  = Cbuf(DriverReservedCb, cbOffset);
+                Operand baseAddrHigh = Cbuf(DriverReservedCb, cbOffset + 1);
+                Operand size         = Cbuf(DriverReservedCb, cbOffset + 2);
 
                 Operand offset = PrependOperation(Instruction.Subtract,       addrLow, baseAddrLow);
                 Operand borrow = PrependOperation(Instruction.CompareLessU32, addrLow, baseAddrLow);
@@ -85,7 +85,7 @@ namespace Ryujinx.Graphics.Shader.Translation
                 Operand inRange = PrependOperation(Instruction.BitwiseAnd, inRangeLow, inRangeHigh);
 
                 sbBaseAddrLow = PrependOperation(Instruction.ConditionalSelect, inRange, baseAddrLow, sbBaseAddrLow);
-                sbSlot        = PrependOperation(Instruction.ConditionalSelect, inRange, Const(slot), sbSlot);
+                sbSlot        = PrependOperation(Instruction.ConditionalSelect, inRange, Const(config.GetSbSlot(DriverReservedCb, (ushort)cbOffset)), sbSlot);
             }
 
             Operand alignMask = Const(-config.GpuAccessor.QueryStorageBufferOffsetAlignment());

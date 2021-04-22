@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Ryujinx.Graphics.Shader.Translation
@@ -34,6 +35,9 @@ namespace Ryujinx.Graphics.Shader.Translation
 
         public HashSet<int> TextureHandlesForCache { get; }
 
+        private readonly Dictionary<int, int> _sbSlots;
+        private readonly Dictionary<int, int> _sbSlotsReverse;
+
         public ShaderConfig(IGpuAccessor gpuAccessor, TranslationFlags flags, TranslationCounts counts)
         {
             Stage                  = ShaderStage.Compute;
@@ -51,25 +55,21 @@ namespace Ryujinx.Graphics.Shader.Translation
             UsedFeatures           = FeatureFlags.None;
             Counts                 = counts;
             TextureHandlesForCache = new HashSet<int>();
+            _sbSlots               = new Dictionary<int, int>();
+            _sbSlotsReverse        = new Dictionary<int, int>();
         }
 
-        public ShaderConfig(ShaderHeader header, IGpuAccessor gpuAccessor, TranslationFlags flags, TranslationCounts counts)
+        public ShaderConfig(ShaderHeader header, IGpuAccessor gpuAccessor, TranslationFlags flags, TranslationCounts counts) : this(gpuAccessor, flags, counts)
         {
-            Stage                  = header.Stage;
-            GpPassthrough          = header.Stage == ShaderStage.Geometry && header.GpPassthrough;
-            OutputTopology         = header.OutputTopology;
-            MaxOutputVertices      = header.MaxOutputVertexCount;
-            LocalMemorySize        = header.ShaderLocalMemoryLowSize + header.ShaderLocalMemoryHighSize;
-            ImapTypes              = header.ImapTypes;
-            OmapTargets            = header.OmapTargets;
-            OmapSampleMask         = header.OmapSampleMask;
-            OmapDepth              = header.OmapDepth;
-            GpuAccessor            = gpuAccessor;
-            Flags                  = flags;
-            Size                   = 0;
-            UsedFeatures           = FeatureFlags.None;
-            Counts                 = counts;
-            TextureHandlesForCache = new HashSet<int>();
+            Stage             = header.Stage;
+            GpPassthrough     = header.Stage == ShaderStage.Geometry && header.GpPassthrough;
+            OutputTopology    = header.OutputTopology;
+            MaxOutputVertices = header.MaxOutputVertexCount;
+            LocalMemorySize   = header.ShaderLocalMemoryLowSize + header.ShaderLocalMemoryHighSize;
+            ImapTypes         = header.ImapTypes;
+            OmapTargets       = header.OmapTargets;
+            OmapSampleMask    = header.OmapSampleMask;
+            OmapDepth         = header.OmapDepth;
         }
 
         public int GetDepthRegister()
@@ -125,6 +125,52 @@ namespace Ryujinx.Graphics.Shader.Translation
         public void SetUsedFeature(FeatureFlags flags)
         {
             UsedFeatures |= flags;
+        }
+
+        public int GetSbSlot(byte sbCbSlot, ushort sbCbOffset)
+        {
+            int key = PackSbCbInfo(sbCbSlot, sbCbOffset);
+
+            if (!_sbSlots.TryGetValue(key, out int slot))
+            {
+                slot = _sbSlots.Count;
+                _sbSlots.Add(key, slot);
+                _sbSlotsReverse.Add(slot, key);
+            }
+
+            return slot;
+        }
+
+        public (int, int) GetSbCbInfo(int slot)
+        {
+            if (_sbSlotsReverse.TryGetValue(slot, out int key))
+            {
+                return UnpackSbCbInfo(key);
+            }
+
+            throw new ArgumentException($"Invalid slot {slot}.", nameof(slot));
+        }
+
+        public BufferDescriptor GetSbDescriptor(int binding, int slot)
+        {
+            if (_sbSlotsReverse.TryGetValue(slot, out int key))
+            {
+                (int sbCbSlot, int sbCbOffset) = UnpackSbCbInfo(key);
+
+                return new BufferDescriptor(binding, slot, sbCbSlot, sbCbOffset);
+            }
+
+            throw new ArgumentException($"Invalid slot {slot}.", nameof(slot));
+        }
+
+        private static int PackSbCbInfo(int sbCbSlot, int sbCbOffset)
+        {
+            return sbCbOffset | ((int)sbCbSlot << 16);
+        }
+
+        private static (int, int) UnpackSbCbInfo(int key)
+        {
+            return ((byte)(key >> 16), (ushort)key);
         }
     }
 }
