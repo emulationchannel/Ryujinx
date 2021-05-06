@@ -216,7 +216,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 KThread threadToSignal = context.Schedulers[coreToSignal]._currentThread;
 
                 // Request the thread running on that core to stop and reschedule, if we have one.
-                if (threadToSignal != context.Schedulers[coreToSignal]._idleThread)
+                if (threadToSignal != context.Schedulers[coreToSignal]._idleThread && threadToSignal.IsSchedulable)
                 {
                     threadToSignal.Context.RequestInterrupt();
                 }
@@ -469,6 +469,11 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
         {
             KThread currentThread = KernelStatic.GetCurrentThread();
 
+            if (!currentThread.IsSchedulable)
+            {
+                return;
+            }
+
             context.CriticalSection.Enter();
 
             if (currentThread.SchedFlags != ThreadSchedState.Running)
@@ -490,6 +495,11 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
         public static void YieldWithLoadBalancing(KernelContext context)
         {
             KThread currentThread = KernelStatic.GetCurrentThread();
+
+            if (!currentThread.IsSchedulable)
+            {
+                return;
+            }
 
             context.CriticalSection.Enter();
 
@@ -549,6 +559,11 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
         public static void YieldToAnyThread(KernelContext context)
         {
             KThread currentThread = KernelStatic.GetCurrentThread();
+
+            if (!currentThread.IsSchedulable)
+            {
+                return;
+            }
 
             context.CriticalSection.Enter();
 
