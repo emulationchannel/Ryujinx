@@ -16,7 +16,7 @@ namespace Ryujinx.HLE.HOS
             switch (mode)
             {
                 case MemoryManagerMode.SoftwarePageTable:
-                    return new ArmProcessContext<MemoryManager>(new MemoryManager(addressSpaceSize, invalidAccessHandler), for64Bit);
+                    return new ArmProcessContext<MemoryManager>(new MemoryManager(context.Memory, addressSpaceSize, invalidAccessHandler), for64Bit);
 
                 case MemoryManagerMode.HostMapped:
                 case MemoryManagerMode.HostMappedUnsafe:
