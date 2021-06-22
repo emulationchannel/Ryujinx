@@ -21,7 +21,7 @@ namespace Ryujinx.HLE.HOS
                 case MemoryManagerMode.HostMapped:
                 case MemoryManagerMode.HostMappedUnsafe:
                     bool unsafeMode = mode == MemoryManagerMode.HostMappedUnsafe;
-                    return new ArmProcessContext<MemoryManagerHostMapped>(new MemoryManagerHostMapped(addressSpaceSize, unsafeMode, invalidAccessHandler), for64Bit);
+                    return new ArmProcessContext<MemoryManagerHostMapped>(new MemoryManagerHostMapped(context.Memory, addressSpaceSize, unsafeMode, invalidAccessHandler), for64Bit);
 
                 default:
                     throw new ArgumentOutOfRangeException();

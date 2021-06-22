@@ -24,13 +24,13 @@ namespace Ryujinx.Memory
             }
         }
 
-        public static IntPtr Reserve(ulong size)
+        public static IntPtr Reserve(ulong size, bool viewCompatible)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 IntPtr sizeNint = new IntPtr((long)size);
 
-                return MemoryManagementWindows.Reserve(sizeNint);
+                return MemoryManagementWindows.Reserve(sizeNint, viewCompatible);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
                      RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -74,6 +74,34 @@ namespace Ryujinx.Memory
                      RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 return MemoryManagementUnix.Decommit(address, size);
+            }
+            else
+            {
+                throw new PlatformNotSupportedException();
+            }
+        }
+
+        public static void MapView(IntPtr sharedMemory, ulong srcOffset, IntPtr address, ulong size)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                IntPtr sizeNint = new IntPtr((long)size);
+
+                MemoryManagementWindows.MapView(sharedMemory, srcOffset, address, sizeNint);
+            }
+            else
+            {
+                throw new PlatformNotSupportedException();
+            }
+        }
+
+        public static void UnmapView(IntPtr address, ulong size)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                IntPtr sizeNint = new IntPtr((long)size);
+
+                MemoryManagementWindows.UnmapView(address, sizeNint);
             }
             else
             {

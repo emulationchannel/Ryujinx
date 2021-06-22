@@ -121,14 +121,27 @@ namespace Ryujinx.Cpu
         /// <inheritdoc/>
         public T Read<T>(ulong va) where T : unmanaged
         {
-            return MemoryMarshal.Cast<byte, T>(GetSpan(va, Unsafe.SizeOf<T>(), true))[0];
+            return MemoryMarshal.Cast<byte, T>(GetSpan(va, Unsafe.SizeOf<T>()))[0];
         }
 
         /// <inheritdoc/>
         public T ReadTracked<T>(ulong va) where T : unmanaged
         {
-            SignalMemoryTracking(va, (ulong)Unsafe.SizeOf<T>(), false);
-            return MemoryMarshal.Cast<byte, T>(GetSpan(va, Unsafe.SizeOf<T>()))[0];
+            try
+            {
+                SignalMemoryTracking(va, (ulong)Unsafe.SizeOf<T>(), false);
+
+                return Read<T>(va);
+            }
+            catch (InvalidMemoryRegionException)
+            {
+                if (_invalidAccessHandler == null || !_invalidAccessHandler(va))
+                {
+                    throw;
+                }
+
+                return default;
+            }
         }
 
         /// <inheritdoc/>
@@ -296,7 +309,7 @@ namespace Ryujinx.Cpu
             return (int)(vaSpan / PageSize);
         }
 
-        private void ThrowMemoryNotContiguous() => throw new MemoryNotContiguousException();
+        private static void ThrowMemoryNotContiguous() => throw new MemoryNotContiguousException();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsContiguousAndMapped(ulong va, int size) => IsContiguous(va, size) && IsMapped(va);

@@ -1060,14 +1060,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Process
                 KernelContext.Device.Gpu.SetVmm((IVirtualMemoryManagerTracked)CpuMemory);
             }
 
-            if (Context.AddressSpace is MemoryManagerHostMapped)
-            {
-                MemoryManager = new KPageTableHostMapped(KernelContext, CpuMemory);
-            }
-            else
-            {
-                MemoryManager = new KPageTable(KernelContext, CpuMemory);
-            }
+            MemoryManager = new KPageTable(KernelContext, CpuMemory);
         }
 
         private bool InvalidAccessHandler(ulong va)

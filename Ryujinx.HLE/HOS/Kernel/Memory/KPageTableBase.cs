@@ -1,11 +1,9 @@
 using Ryujinx.Common;
 using Ryujinx.HLE.HOS.Kernel.Common;
 using Ryujinx.HLE.HOS.Kernel.Process;
-using Ryujinx.Memory.Range;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 
 namespace Ryujinx.HLE.HOS.Kernel.Memory
 {
@@ -72,8 +70,6 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
         private int _contextId;
 
         private MersenneTwister _randomNumberGenerator;
-
-        public abstract bool SupportsMemoryAliasing { get; }
 
         public KPageTableBase(KernelContext context)
         {
@@ -1638,11 +1634,6 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
             bool send,
             out ulong dst)
         {
-            if (!SupportsMemoryAliasing)
-            {
-                throw new NotSupportedException("Memory aliasing not supported, can't map IPC buffers.");
-            }
-
             dst = 0;
 
             if (!_slabManager.CanAllocate(MaxBlocksNeededForInsertion))
