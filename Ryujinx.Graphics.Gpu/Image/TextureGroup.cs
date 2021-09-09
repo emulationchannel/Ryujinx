@@ -118,7 +118,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         }
 
         /// <summary>
-        /// Synchronize memory for a given texture. 
+        /// Synchronize memory for a given texture.
         /// If overlapping tracking handles are dirty, fully or partially synchronize the texture data.
         /// </summary>
         /// <param name="texture">The texture being used</param>
@@ -155,7 +155,7 @@ namespace Ryujinx.Graphics.Gpu.Image
 
                     // Evaluate if any copy dependencies need to be fulfilled. A few rules:
                     // If the copy handle needs to be synchronized, prefer our own state.
-                    // If we need to be synchronized and there is a copy present, prefer the copy. 
+                    // If we need to be synchronized and there is a copy present, prefer the copy.
 
                     if (group.NeedsCopy && group.Copy())
                     {
@@ -335,7 +335,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         }
 
         /// <summary>
-        /// Evaluate the range of tracking handles which a view texture overlaps with, 
+        /// Evaluate the range of tracking handles which a view texture overlaps with,
         /// using the view's position and slice/level counts.
         /// </summary>
         /// <param name="firstLayer">The first layer of the texture</param>
@@ -354,7 +354,7 @@ namespace Ryujinx.Graphics.Gpu.Image
             if (_is3D)
             {
                 // Future mip levels come after all layers of the last mip level. Each mipmap has less layers (depth) than the last.
-                
+
                 if (!_hasLayerViews)
                 {
                     // When there are no layer views, the mips are at a consistent offset.
@@ -468,7 +468,7 @@ namespace Ryujinx.Graphics.Gpu.Image
                     }
 
                     baseLayer = handleIndex;
-                } 
+                }
                 else
                 {
                     baseLayer = 0;
@@ -596,7 +596,7 @@ namespace Ryujinx.Graphics.Gpu.Image
                 int sliceStart = Math.Clamp(offset, 0, subRangeSize);
                 int sliceEnd = Math.Clamp(endOffset, 0, subRangeSize);
 
-                if (sliceStart != sliceEnd)
+                if (sliceStart != sliceEnd && item.Address != MemoryManager.PteUnmapped)
                 {
                     result.Add(GenerateHandle(item.Address + (ulong)sliceStart, (ulong)(sliceEnd - sliceStart)));
                 }
@@ -708,13 +708,13 @@ namespace Ryujinx.Graphics.Gpu.Image
                                     dirty |= oldHandle.Dirty;
                                 }
                             }
-                            
+
                             group.Inherit(oldGroup);
                         }
                     }
 
                     if (dirty && !handle.Dirty)
-                    { 
+                    {
                         handle.Reprotect(true);
                     }
 
@@ -791,11 +791,20 @@ namespace Ryujinx.Graphics.Gpu.Image
             {
                 // Single dirty region.
                 var cpuRegionHandles = new CpuRegionHandle[TextureRange.Count];
+                int count = 0;
 
                 for (int i = 0; i < TextureRange.Count; i++)
                 {
                     var currentRange = TextureRange.GetSubRange(i);
-                    cpuRegionHandles[i] = GenerateHandle(currentRange.Address, currentRange.Size);
+                    if (currentRange.Address != MemoryManager.PteUnmapped)
+                    {
+                        cpuRegionHandles[count++] = GenerateHandle(currentRange.Address, currentRange.Size);
+                    }
+                }
+
+                if (count != TextureRange.Count)
+                {
+                    Array.Resize(ref cpuRegionHandles, count);
                 }
 
                 var groupHandle = new TextureGroupHandle(this, 0, Storage.Size, _views, 0, 0, cpuRegionHandles);
@@ -838,7 +847,7 @@ namespace Ryujinx.Graphics.Gpu.Image
                     }
 
                     handles = handlesList.ToArray();
-                } 
+                }
                 else
                 {
                     handles = new TextureGroupHandle[layerHandles * levelHandles];

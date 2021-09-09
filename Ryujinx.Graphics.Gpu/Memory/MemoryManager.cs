@@ -28,7 +28,7 @@ namespace Ryujinx.Graphics.Gpu.Memory
         private const int PtLvl1Bit = PtPageBits;
         private const int AddressSpaceBits = PtPageBits + PtLvl1Bits + PtLvl0Bits;
 
-        public const ulong PteUnmapped = 0xffffffff_ffffffff;
+        public const ulong PteUnmapped = ulong.MaxValue;
 
         private readonly ulong[][] _pageTable;
 
@@ -337,11 +337,6 @@ namespace Ryujinx.Graphics.Gpu.Memory
                 return new MultiRange(Translate(va), size);
             }
 
-            if (!IsMapped(va))
-            {
-                throw new InvalidMemoryRegionException($"The specified GPU virtual address 0x{va:X} is not mapped.");
-            }
-
             ulong regionStart = Translate(va);
             ulong regionSize = Math.Min(size, PageSize - (va & PageMask));
 
@@ -356,14 +351,10 @@ namespace Ryujinx.Graphics.Gpu.Memory
 
             for (int page = 0; page < pages - 1; page++)
             {
-                if (!IsMapped(va + PageSize))
-                {
-                    throw new InvalidMemoryRegionException($"The specified GPU virtual memory range 0x{va:X}..0x{(va + size):X} is not fully mapped.");
-                }
-
+                ulong currPa = Translate(va);
                 ulong newPa = Translate(va + PageSize);
 
-                if (Translate(va) + PageSize != newPa)
+                if ((currPa != PteUnmapped || newPa != PteUnmapped) && currPa + PageSize != newPa)
                 {
                     regions.Add(new MemoryRange(regionStart, regionSize));
                     regionStart = newPa;
@@ -394,18 +385,35 @@ namespace Ryujinx.Graphics.Gpu.Memory
             {
                 MemoryRange currentRange = range.GetSubRange(i);
 
-                ulong address = currentRange.Address & ~PageMask;
-                ulong endAddress = (currentRange.EndAddress + PageMask) & ~PageMask;
-
-                while (address < endAddress)
+                if (currentRange.Address != PteUnmapped)
                 {
-                    if (Translate(va) != address)
-                    {
-                        return false;
-                    }
+                    ulong address = currentRange.Address & ~PageMask;
+                    ulong endAddress = (currentRange.EndAddress + PageMask) & ~PageMask;
 
-                    va += PageSize;
-                    address += PageSize;
+                    while (address < endAddress)
+                    {
+                        if (Translate(va) != address)
+                        {
+                            return false;
+                        }
+
+                        va += PageSize;
+                        address += PageSize;
+                    }
+                }
+                else
+                {
+                    ulong endVa = va + (((currentRange.Size) + PageMask) & ~PageMask);
+
+                    while (va < endVa)
+                    {
+                        if (Translate(va) != PteUnmapped)
+                        {
+                            return false;
+                        }
+
+                        va += PageSize;
+                    }
                 }
             }
 

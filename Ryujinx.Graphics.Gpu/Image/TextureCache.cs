@@ -9,6 +9,7 @@ using Ryujinx.Graphics.Gpu.Memory;
 using Ryujinx.Graphics.Texture;
 using Ryujinx.Memory.Range;
 using System;
+using System.Collections.Generic;
 
 namespace Ryujinx.Graphics.Gpu.Image
 {
@@ -38,6 +39,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         private readonly PhysicalMemory _physicalMemory;
 
         private readonly MultiRangeList<Texture> _textures;
+        private readonly HashSet<Texture> _partiallyMappedTextures;
 
         private Texture[] _textureOverlaps;
         private OverlapInfo[] _overlapInfo;
@@ -55,6 +57,7 @@ namespace Ryujinx.Graphics.Gpu.Image
             _physicalMemory = physicalMemory;
 
             _textures = new MultiRangeList<Texture>();
+            _partiallyMappedTextures = new HashSet<Texture>();
 
             _textureOverlaps = new Texture[OverlapsBufferInitialCapacity];
             _overlapInfo = new OverlapInfo[OverlapsBufferInitialCapacity];
@@ -72,14 +75,34 @@ namespace Ryujinx.Graphics.Gpu.Image
             Texture[] overlaps = new Texture[10];
             int overlapCount;
 
+            var range = ((MemoryManager)sender).GetPhysicalRegions(e.Address, e.Size);
+
             lock (_textures)
             {
-                overlapCount = _textures.FindOverlaps(((MemoryManager)sender).Translate(e.Address), e.Size, ref overlaps);
+                overlapCount = _textures.FindOverlaps(range, ref overlaps);
             }
 
             for (int i = 0; i < overlapCount; i++)
             {
                 overlaps[i].Unmapped();
+            }
+
+            // If any range was previously unmapped, we also need to purge
+            // all partially mapped texture, as they might be fully mapped now.
+            for (int i = 0; i < range.Count; i++)
+            {
+                if (range.GetSubRange(i).Address == MemoryManager.PteUnmapped)
+                {
+                    lock (_partiallyMappedTextures)
+                    {
+                        foreach (var texture in _partiallyMappedTextures)
+                        {
+                            texture.Unmapped();
+                        }
+                    }
+
+                    break;
+                }
             }
         }
 
@@ -476,10 +499,20 @@ namespace Ryujinx.Graphics.Gpu.Image
             SizeInfo sizeInfo = info.CalculateSizeInfo(layerSize);
 
             ulong size = (ulong)sizeInfo.TotalSize;
+            bool partiallyMapped = false;
 
             if (range == null)
             {
                 range = memoryManager.GetPhysicalRegions(info.GpuAddress, size);
+
+                for (int i = 0; i < range.Value.Count; i++)
+                {
+                    if (range.Value.GetSubRange(i).Address == MemoryManager.PteUnmapped)
+                    {
+                        partiallyMapped = true;
+                        break;
+                    }
+                }
             }
 
             // Find view compatible matches.
@@ -754,6 +787,14 @@ namespace Ryujinx.Graphics.Gpu.Image
             lock (_textures)
             {
                 _textures.Add(texture);
+            }
+
+            if (partiallyMapped)
+            {
+                lock (_partiallyMappedTextures)
+                {
+                    _partiallyMappedTextures.Add(texture);
+                }
             }
 
             ShrinkOverlapsBufferIfNeeded();
@@ -1036,6 +1077,11 @@ namespace Ryujinx.Graphics.Gpu.Image
             lock (_textures)
             {
                 _textures.Remove(texture);
+            }
+
+            lock (_partiallyMappedTextures)
+            {
+                _partiallyMappedTextures.Remove(texture);
             }
         }
 
