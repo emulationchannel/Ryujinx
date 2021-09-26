@@ -88,7 +88,7 @@ namespace Ryujinx.Graphics.Gpu.Image
             }
 
             // If any range was previously unmapped, we also need to purge
-            // all partially mapped texture, as they might be fully mapped now.
+            // all partially mapped textures, as they might be fully mapped now.
             for (int i = 0; i < range.Count; i++)
             {
                 if (range.GetSubRange(i).Address == MemoryManager.PteUnmapped)
