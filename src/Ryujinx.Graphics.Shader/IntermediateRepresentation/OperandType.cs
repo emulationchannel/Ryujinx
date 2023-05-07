@@ -4,6 +4,7 @@ namespace Ryujinx.Graphics.Shader.IntermediateRepresentation
     {
         Argument,
         Constant,
+        ConstantBuffer,
         Label,
         LocalVariable,
         Register,

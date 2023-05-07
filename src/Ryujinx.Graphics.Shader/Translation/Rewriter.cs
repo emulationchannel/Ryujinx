@@ -1,6 +1,5 @@
 using Ryujinx.Graphics.Shader.IntermediateRepresentation;
 using Ryujinx.Graphics.Shader.StructuredIr;
-using Ryujinx.Graphics.Shader.Translation.Optimizations;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -35,12 +34,12 @@ namespace Ryujinx.Graphics.Shader.Translation
                     {
                         if (hasConstantBufferDrawParameters)
                         {
-                            if (ReplaceConstantBufferWithDrawParameters(config, node, operation))
+                            if (ReplaceConstantBufferWithDrawParameters(node, operation))
                             {
                                 config.SetUsedFeature(FeatureFlags.DrawParameters);
                             }
                         }
-                        else if (HasConstantBufferDrawParameters(config, operation))
+                        else if (HasConstantBufferDrawParameters(operation))
                         {
                             config.SetUsedFeature(FeatureFlags.DrawParameters);
                         }
@@ -193,13 +192,6 @@ namespace Ryujinx.Graphics.Shader.Translation
                 return local;
             }
 
-            Operand PrependExistingOperationDest(Operation operation)
-            {
-                node.List.AddBefore(node, operation);
-
-                return operation.Dest;
-            }
-
             Operand addrLow  = operation.GetSource(0);
             Operand addrHigh = operation.GetSource(1);
 
@@ -210,9 +202,9 @@ namespace Ryujinx.Graphics.Shader.Translation
 
             Operand BindingRangeCheck(int cbOffset, out Operand baseAddrLow)
             {
-                baseAddrLow          = PrependExistingOperationDest(Utils.CreateLoadConstant(config, DriverReservedCb, cbOffset));
-                Operand baseAddrHigh = PrependExistingOperationDest(Utils.CreateLoadConstant(config, DriverReservedCb, cbOffset + 1));
-                Operand size         = PrependExistingOperationDest(Utils.CreateLoadConstant(config, DriverReservedCb, cbOffset + 2));
+                baseAddrLow          = Cbuf(DriverReservedCb, cbOffset);
+                Operand baseAddrHigh = Cbuf(DriverReservedCb, cbOffset + 1);
+                Operand size         = Cbuf(DriverReservedCb, cbOffset + 2);
 
                 Operand offset = PrependOperation(Instruction.Subtract, addrLow, baseAddrLow);
                 Operand borrow = PrependOperation(Instruction.CompareLessU32, addrLow, baseAddrLow);
@@ -804,7 +796,7 @@ namespace Ryujinx.Graphics.Shader.Translation
             return node;
         }
 
-        private static bool ReplaceConstantBufferWithDrawParameters(ShaderConfig config, LinkedListNode<INode> node, Operation operation)
+        private static bool ReplaceConstantBufferWithDrawParameters(LinkedListNode<INode> node, Operation operation)
         {
             Operand GenerateLoad(IoVariable ioVariable)
             {
@@ -819,9 +811,9 @@ namespace Ryujinx.Graphics.Shader.Translation
             {
                 Operand src = operation.GetSource(srcIndex);
 
-                if (Utils.TryGetConstantBuffer(config, src, out int cbSlot, out int cbOffset) && cbSlot == 0)
+                if (src.Type == OperandType.ConstantBuffer && src.GetCbufSlot() == 0)
                 {
-                    switch (cbOffset)
+                    switch (src.GetCbufOffset())
                     {
                         case Constants.NvnBaseVertexByteOffset / 4:
                             operation.SetSource(srcIndex, GenerateLoad(IoVariable.BaseVertex));
@@ -842,15 +834,15 @@ namespace Ryujinx.Graphics.Shader.Translation
             return modified;
         }
 
-        private static bool HasConstantBufferDrawParameters(ShaderConfig config, Operation operation)
+        private static bool HasConstantBufferDrawParameters(Operation operation)
         {
             for (int srcIndex = 0; srcIndex < operation.SourcesCount; srcIndex++)
             {
                 Operand src = operation.GetSource(srcIndex);
 
-                if (Utils.TryGetConstantBuffer(config, src, out int cbSlot, out int cbOffset) && cbSlot == 0)
+                if (src.Type == OperandType.ConstantBuffer && src.GetCbufSlot() == 0)
                 {
-                    switch (cbOffset)
+                    switch (src.GetCbufOffset())
                     {
                         case Constants.NvnBaseVertexByteOffset / 4:
                         case Constants.NvnBaseInstanceByteOffset / 4:

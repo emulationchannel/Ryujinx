@@ -8,7 +8,7 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
 {
     static class ConstantFolding
     {
-        public static void RunPass(Operation operation)
+        public static void RunPass(ShaderConfig config, Operation operation)
         {
             if (!AreAllSourcesConstant(operation))
             {
@@ -151,6 +151,23 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
 
                 case Instruction.IsNan:
                     EvaluateFPUnary(operation, (x) => float.IsNaN(x));
+                    break;
+
+                case Instruction.Load:
+                    if (operation.StorageKind == StorageKind.ConstantBuffer && operation.SourcesCount == 4)
+                    {
+                        int binding = operation.GetSource(0).Value;
+                        int fieldIndex = operation.GetSource(1).Value;
+
+                        if (config.ResourceManager.TryGetConstantBufferSlot(binding, out int cbufSlot) && fieldIndex == 0)
+                        {
+                            int vecIndex = operation.GetSource(2).Value;
+                            int elemIndex = operation.GetSource(3).Value;
+                            int cbufOffset = vecIndex * 4 + elemIndex;
+
+                            operation.TurnIntoCopy(Cbuf(cbufSlot, cbufOffset));
+                        }
+                    }
                     break;
 
                 case Instruction.Maximum:

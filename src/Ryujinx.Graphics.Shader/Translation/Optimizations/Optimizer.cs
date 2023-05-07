@@ -9,7 +9,7 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
     {
         public static void RunPass(BasicBlock[] blocks, ShaderConfig config)
         {
-            RunOptimizationPasses(blocks);
+            RunOptimizationPasses(blocks, config);
 
             int sbUseMask = 0;
             int ubeUseMask = 0;
@@ -25,10 +25,10 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
             config.SetAccessibleBufferMasks(sbUseMask, ubeUseMask);
 
             // Run optimizations one last time to remove any code that is now optimizable after above passes.
-            RunOptimizationPasses(blocks);
+            RunOptimizationPasses(blocks, config);
         }
 
-        private static void RunOptimizationPasses(BasicBlock[] blocks)
+        private static void RunOptimizationPasses(BasicBlock[] blocks, ShaderConfig config)
         {
             bool modified;
 
@@ -67,7 +67,7 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
                             continue;
                         }
 
-                        ConstantFolding.RunPass(operation);
+                        ConstantFolding.RunPass(config, operation);
                         Simplification.RunPass(operation);
 
                         if (DestIsLocalVar(operation))
@@ -164,63 +164,13 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
 
         private static bool IsSameOperand(Operand x, Operand y)
         {
-            if (x.Type != y.Type)
+            if (x.Type != y.Type || x.Value != y.Value)
             {
                 return false;
             }
 
-            if (x.Type == OperandType.Constant)
-            {
-                return x.Value == y.Value;
-            }
-            else if (x.Type == OperandType.LocalVariable)
-            {
-                // Look for loads from input or constant buffers,
-                // if they are the same, we can assume the values are the same
-                // as those values can't be modified.
-
-                if (!(x.AsgOp is Operation xOperation) ||
-                    !(y.AsgOp is Operation yOperation))
-                {
-                    return false;
-                }
-
-                if (xOperation.Inst != Instruction.Load ||
-                    yOperation.Inst != Instruction.Load ||
-                    xOperation.StorageKind != yOperation.StorageKind)
-                {
-                    return false;
-                }
-
-                if (xOperation.StorageKind != StorageKind.Input &&
-                    xOperation.StorageKind != StorageKind.InputPerPatch &&
-                    xOperation.StorageKind != StorageKind.ConstantBuffer)
-                {
-                    return false;
-                }
-
-                if (xOperation.SourcesCount != yOperation.SourcesCount)
-                {
-                    return false;
-                }
-
-                for (int srcIndex = 0; srcIndex < xOperation.SourcesCount; srcIndex++)
-                {
-                    Operand xSrc = xOperation.GetSource(srcIndex);
-                    Operand ySrc = yOperation.GetSource(srcIndex);
-
-                    if (xSrc.Type != OperandType.Constant ||
-                        ySrc.Type != OperandType.Constant ||
-                        xSrc.Value != ySrc.Value)
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-
-            return false;
+            // TODO: Handle Load operations with the same storage and the same constant parameters.
+            return x.Type == OperandType.Constant || x.Type == OperandType.ConstantBuffer;
         }
 
         private static bool PropagatePack(Operation packOp)

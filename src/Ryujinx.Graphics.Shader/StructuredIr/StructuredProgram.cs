@@ -112,7 +112,7 @@ namespace Ryujinx.Graphics.Shader.StructuredIr
 
             for (int index = 0; index < operation.SourcesCount; index++)
             {
-                sources[index] = context.GetOperand(operation.GetSource(index));
+                sources[index] = context.GetOperandOrCbLoad(operation.GetSource(index));
             }
 
             for (int index = 0; index < outDestsCount; index++)
