@@ -963,7 +963,7 @@ namespace Ryujinx.Graphics.Shader.Translation
         {
             return new ShaderProgramInfo(
                 ResourceManager.GetConstantBufferDescriptors(),
-                GetStorageBufferDescriptors(),
+                ResourceManager.GetStorageBufferDescriptors(),
                 GetTextureDescriptors(),
                 GetImageDescriptors(),
                 identification,

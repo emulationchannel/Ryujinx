@@ -17,11 +17,12 @@ namespace Ryujinx.Graphics.Vulkan
             int stagesCount = BitOperations.PopCount(stages);
 
             int uCount = Constants.MaxUniformBuffersPerStage * stagesCount + 1;
+            int sCount = Constants.MaxStorageBuffersPerStage * stagesCount;
             int tCount = Constants.MaxTexturesPerStage * 2 * stagesCount;
             int iCount = Constants.MaxImagesPerStage * 2 * stagesCount;
 
             DescriptorSetLayoutBinding* uLayoutBindings = stackalloc DescriptorSetLayoutBinding[uCount];
-            DescriptorSetLayoutBinding* sLayoutBindings = stackalloc DescriptorSetLayoutBinding[stagesCount];
+            DescriptorSetLayoutBinding* sLayoutBindings = stackalloc DescriptorSetLayoutBinding[sCount];
             DescriptorSetLayoutBinding* tLayoutBindings = stackalloc DescriptorSetLayoutBinding[tCount];
             DescriptorSetLayoutBinding* iLayoutBindings = stackalloc DescriptorSetLayoutBinding[iCount];
 
@@ -65,19 +66,8 @@ namespace Ryujinx.Graphics.Vulkan
                     }
                 }
 
-                void SetStorage(DescriptorSetLayoutBinding* bindings, int maxPerStage, int start = 0)
-                {
-                    bindings[start + iter] = new DescriptorSetLayoutBinding
-                    {
-                        Binding = (uint)(start + stage * maxPerStage),
-                        DescriptorType = DescriptorType.StorageBuffer,
-                        DescriptorCount = (uint)maxPerStage,
-                        StageFlags = stageFlags
-                    };
-                }
-
                 Set(uLayoutBindings, Constants.MaxUniformBuffersPerStage, DescriptorType.UniformBuffer, 1, 1);
-                SetStorage(sLayoutBindings, Constants.MaxStorageBuffersPerStage);
+                Set(sLayoutBindings, Constants.MaxStorageBuffersPerStage, DescriptorType.StorageBuffer, 0, 1);
                 Set(tLayoutBindings, Constants.MaxTexturesPerStage, DescriptorType.CombinedImageSampler, 0, 2);
                 Set(tLayoutBindings, Constants.MaxTexturesPerStage, DescriptorType.UniformTexelBuffer, Constants.MaxTexturesPerStage, 2);
                 Set(iLayoutBindings, Constants.MaxImagesPerStage, DescriptorType.StorageImage, 0, 2);
@@ -100,7 +90,7 @@ namespace Ryujinx.Graphics.Vulkan
             {
                 SType = StructureType.DescriptorSetLayoutCreateInfo,
                 PBindings = sLayoutBindings,
-                BindingCount = (uint)stagesCount
+                BindingCount = (uint)sCount
             };
 
             var tDescriptorSetLayoutCreateInfo = new DescriptorSetLayoutCreateInfo()
