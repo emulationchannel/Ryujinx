@@ -309,10 +309,11 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Spirv
 
             for (int i = 0; i < args.Length; i++)
             {
-                var operand = (AstOperand)operation.GetSource(i + 1);
+                var operand = operation.GetSource(i + 1);
+
                 if (i >= function.InArguments.Length)
                 {
-                    args[i] = context.GetLocalPointer(operand);
+                    args[i] = context.GetLocalPointer((AstOperand)operand);
                 }
                 else
                 {
